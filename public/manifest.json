@@ -1,0 +1,21 @@
+{
+  "name": "Our Calendar",
+  "short_name": "P & B",
+  "description": "Our life together — events, plans, and adventures in London",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fce4ec",
+  "theme_color": "#ec2682",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
