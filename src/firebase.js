@@ -2,13 +2,13 @@ import { initializeApp } from "firebase/app";
 import { getDatabase, ref, onValue, set } from "firebase/database";
 
 const firebaseConfig = {
-  apiKey:            "PASTE_YOUR_API_KEY_HERE",
-  authDomain:        "PASTE_YOUR_AUTH_DOMAIN_HERE",
-  databaseURL:       "PASTE_YOUR_DATABASE_URL_HERE",
-  projectId:         "PASTE_YOUR_PROJECT_ID_HERE",
-  storageBucket:     "PASTE_YOUR_STORAGE_BUCKET_HERE",
-  messagingSenderId: "PASTE_YOUR_SENDER_ID_HERE",
-  appId:             "PASTE_YOUR_APP_ID_HERE",
+  apiKey: "AIzaSyDhQG0mSAxBy9IjwSo9pUVWeVLjEdG1qaU",
+  authDomain: "calendar-316b9.firebaseapp.com",
+  databaseURL: "https://calendar-316b9-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "calendar-316b9",
+  storageBucket: "calendar-316b9.firebasestorage.app",
+  messagingSenderId: "971964173280",
+  appId: "1:971964173280:web:68a1c36050190fddc67985"
 };
 
 const app = initializeApp(firebaseConfig);
