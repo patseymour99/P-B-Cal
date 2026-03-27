@@ -66,6 +66,9 @@ function Empty({t,msg,icon}){return<div style={{padding:40,textAlign:"center"}}>
 
 /* ═══════════════════════ MAIN ═══════════════════════ */
 export default function App(){
+  const[user,setUser]=useState(null); // "P" or "B"
+  const NAMES={P:"Patrick",B:"Blanka"};
+  const OTHER=u=>u==="P"?"B":"P";
   const[theme,setTheme]=useState("pink");const[events,setEvents]=useState({});const[tab,setTab]=useState("home");const[prevTab,setPrevTab]=useState("home");const[modal,setModal]=useState(null);
   const[cMonth,setCMonth]=useState(new Date().getMonth());const[cYear,setCYear]=useState(new Date().getFullYear());
   const ef={title:"",tags:[],people:"",notes:"",time:"",duration:"",images:[],rating:0,foodType:"",priceRange:"",restaurantName:"",bestDish:"",link:"",address:"",lat:null,lng:null,recurrence:"None",mood:""};
@@ -107,6 +110,7 @@ export default function App(){
     u.push(onValue(tennisRef,s=>{if(s.val())setTSessions(s.val());}));
     u.push(onValue(runningRef,s=>{if(s.val())setRuns(s.val());}));
     try{const r=localStorage.getItem("v5t");if(r)setTheme(r);}catch{}
+    try{const u=localStorage.getItem("v5user");if(u)setUser(u);}catch{}
     return()=>u.forEach(x=>x());},[]);
   const sy=(r,d)=>{try{set(r,d);}catch{}};
   const sEv=ev=>{setEvents(ev);sy(eventsRef,ev);try{localStorage.setItem("v5e",JSON.stringify(ev));}catch{}};
@@ -117,7 +121,24 @@ export default function App(){
   const wIcon=c=>c<=1?"☀️":c<=3?"⛅":c<=49?"☁️":c<=69?"🌧️":"⛈️";
 
   // ── Notifications ──
-  useEffect(()=>{if(!loaded||!("Notification"in window))return;const tm=setTimeout(async()=>{if(Notification.permission==="default")await Notification.requestPermission();if(Notification.permission==="granted"){const e=events[today]||[];if(e.length)new Notification("Our Calendar",{body:`${e.length} event${e.length>1?"s":""} today: ${e.map(x=>x.title).join(", ")}`,icon:"/apple-touch-icon.png"});}},2000);return()=>clearTimeout(tm);},[loaded,today]);
+  const prevEvRef=useRef(null);
+  useEffect(()=>{if(!loaded||!("Notification"in window))return;
+    // Ask permission
+    if(Notification.permission==="default")Notification.requestPermission();
+    // Daily reminder (once on load)
+    const tm=setTimeout(()=>{if(Notification.permission==="granted"){const e=events[today]||[];if(e.length)new Notification("Our Calendar",{body:`${e.length} event${e.length>1?"s":""} today: ${e.map(x=>x.title).join(", ")}`,icon:"/apple-touch-icon.png"});}},2000);
+    return()=>clearTimeout(tm);},[loaded,today]);
+  // Cross-user notification: detect when partner adds/changes events
+  useEffect(()=>{if(!user||!loaded||Notification.permission!=="granted")return;
+    const evStr=JSON.stringify(events);
+    if(prevEvRef.current&&prevEvRef.current!==evStr){
+      // Find new events created by the other person
+      try{const prev=JSON.parse(prevEvRef.current);
+        Object.entries(events).forEach(([k,evs])=>{const oldEvs=prev[k]||[];
+          evs.forEach(ev=>{if(ev.createdBy&&ev.createdBy!==user&&!oldEvs.some(o=>o.title===ev.title&&o.time===ev.time)){
+            new Notification(`${NAMES[ev.createdBy]} added an event`,{body:`${ev.title}${ev.time?" at "+ev.time:""} — ${fmtD(k)}`,icon:"/apple-touch-icon.png"});
+          }});});}catch{}}
+    prevEvRef.current=evStr;},[events,user,loaded]);
 
   // ── Computed ──
   const wk=useMemo(()=>gwk(),[today]);const md=useMemo(()=>gmd(cYear,cMonth),[cYear,cMonth]);
@@ -144,7 +165,7 @@ export default function App(){
   const oQuickAdd=(ds,preset)=>{setSelDate(ds);setForm({...ef,title:preset.label,tags:preset.tags,duration:preset.duration});setEditIdx(null);setModal("add");setQuickAdd(null);};
   const oView=(ds,i)=>{const ev=(am[ds]||events[ds]||[])[i];if(!ev)return;setSelDate(ds);setEditIdx(i);setViewEv({...ev,date:ds,idx:i});setConfirmDel(false);setModal("view");};
   const oEdit=()=>{const v=viewEv;setForm({title:v.title,tags:gt(v),people:v.people||"",notes:v.notes||"",time:v.time||"",duration:v.duration||"",images:v.images||[],rating:v.rating||0,foodType:v.foodType||"",priceRange:v.priceRange||"",restaurantName:v.restaurantName||"",bestDish:v.bestDish||"",link:v.link||"",address:v.address||"",lat:v.lat||null,lng:v.lng||null,recurrence:v.recurrence||"None",mood:v.mood||""});setModal("edit");};
-  const save=()=>{if(!form.title.trim())return;const c={...events};const k=selDate;if(!c[k])c[k]=[];else c[k]=[...c[k]];if(editIdx!==null&&!viewEv?.isRecurring)c[k][editIdx]={...form};else c[k].push({...form});sEv(c);setModal(null);toast.show("Saved ✓");};
+  const save=()=>{if(!form.title.trim())return;const c={...events};const k=selDate;if(!c[k])c[k]=[];else c[k]=[...c[k]];const evData={...form,createdBy:user||"P"};if(editIdx!==null&&!viewEv?.isRecurring)c[k][editIdx]=evData;else c[k].push(evData);sEv(c);setModal(null);toast.show("Saved ✓");};
   const del=()=>{if(!confirmDel){setConfirmDel(true);return;}if(viewEv?.isRecurring)return;const c={...events};c[selDate]=c[selDate].filter((_,i)=>i!==editIdx);if(!c[selDate].length)delete c[selDate];sEv(c);setModal(null);setConfirmDel(false);toast.show("Deleted");};
   const tTag=id=>setForm(f=>({...f,tags:f.tags.includes(id)?f.tags.filter(x=>x!==id):[...f.tags,id]}));
   const tSave=id=>{const s=saved.includes(id)?saved.filter(x=>x!==id):[...saved,id];setSaved(s);sy(savedRef,s);toast.show(s.includes(id)?"Saved ♥":"Removed");};
@@ -161,7 +182,7 @@ export default function App(){
   const rm=(arr,set,ref,id)=>{const n=arr.filter(x=>x.id!==id);set(n);sy(ref,n);toast.show("Deleted");};
 
   // ── Tennis ──
-  const saveTennis=()=>{if(!tf.date)return;const s=[...tSessions,{...tf,id:"t"+Date.now()}];setTSessions(s);sy(tennisRef,s);setTf({date:today,duration:"1 hour",partner:"",location:"",drills:"",notes:"",skills:{},mood:""});setShowTF(false);toast.show("Session logged ✓");};
+  const saveTennis=()=>{if(!tf.date)return;const s=[...tSessions,{...tf,id:"t"+Date.now(),createdBy:user||"P"}];setTSessions(s);sy(tennisRef,s);setTf({date:today,duration:"1 hour",partner:"",location:"",drills:"",notes:"",skills:{},mood:""});setShowTF(false);toast.show("Session logged ✓");};
   const tStats=useMemo(()=>{
     const mo=tSessions.filter(s=>s.date?.startsWith(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`));
     const wkS=tSessions.filter(s=>{const d=new Date(s.date+"T00:00:00");return(now-d)/86400000>=0&&(now-d)/86400000<7;});
@@ -174,7 +195,7 @@ export default function App(){
   },[tSessions,today]);
 
   // ── Running ──
-  const saveRun=()=>{if(!rf.distance)return;const r=[...runs,{...rf,id:"r"+Date.now(),pace:pace(rf.distance,rf.time)}];setRuns(r);sy(runningRef,r);setRf({date:today,distance:"",time:"",type:"Easy",feel:"",notes:""});setShowRF(false);toast.show("Run logged ✓");};
+  const saveRun=()=>{if(!rf.distance)return;const r=[...runs,{...rf,id:"r"+Date.now(),pace:pace(rf.distance,rf.time),createdBy:user||"P"}];setRuns(r);sy(runningRef,r);setRf({date:today,distance:"",time:"",type:"Easy",feel:"",notes:""});setShowRF(false);toast.show("Run logged ✓");};
   const rStats=useMemo(()=>{
     const tkm=runs.reduce((a,r)=>a+(parseFloat(r.distance)||0),0);
     const wkR=runs.filter(r=>{const d=new Date(r.date+"T00:00:00");return(now-d)/86400000<7&&(now-d)/86400000>=0;});
@@ -225,6 +246,26 @@ export default function App(){
 
   if(!loaded)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:t.bg}}><p style={{color:t.mute,fontSize:12,letterSpacing:".1em"}}>LOADING</p></div>;
 
+  // Profile picker — shown once on first launch
+  if(!user)return<div style={{minHeight:"100vh",background:t.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Plus Jakarta Sans',sans-serif",padding:20}}>
+    <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');*{box-sizing:border-box;margin:0;padding:0}`}</style>
+    <div style={{textAlign:"center",maxWidth:320}}>
+      <h1 style={{fontFamily:t.hf,fontSize:28,fontWeight:500,fontStyle:"italic",color:t.tx,marginBottom:8}}>Our Calendar</h1>
+      <p style={{fontSize:13,color:t.sub,marginBottom:32,lineHeight:1.5}}>Who's using this phone?</p>
+      <div style={{display:"flex",gap:12}}>
+        <button onClick={()=>{setUser("P");localStorage.setItem("v5user","P");}} style={{flex:1,padding:"28px 16px",borderRadius:16,border:"none",cursor:"pointer",background:t.card,boxShadow:t.sh,fontFamily:"'Plus Jakarta Sans'"}}>
+          <div style={{fontSize:32,marginBottom:8}}>💙</div>
+          <div style={{fontSize:16,fontWeight:700,color:t.tx}}>Patrick</div>
+        </button>
+        <button onClick={()=>{setUser("B");localStorage.setItem("v5user","B");}} style={{flex:1,padding:"28px 16px",borderRadius:16,border:"none",cursor:"pointer",background:t.card,boxShadow:t.sh,fontFamily:"'Plus Jakarta Sans'"}}>
+          <div style={{fontSize:32,marginBottom:8}}>💗</div>
+          <div style={{fontSize:16,fontWeight:700,color:t.tx}}>Blanka</div>
+        </button>
+      </div>
+      <p style={{fontSize:10,color:t.mute,marginTop:16}}>This only sets up this phone. You can change it later in More.</p>
+    </div>
+  </div>;
+
   return(
     <div style={{minHeight:"100vh",background:t.bg,color:t.tx,fontFamily:"'Plus Jakarta Sans',sans-serif",paddingBottom:70}}>
       <style>{`
@@ -264,7 +305,7 @@ export default function App(){
       <div style={{padding:"20px 20px 0"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div><h1 style={{fontFamily:t.hf,fontSize:26,fontWeight:500,fontStyle:"italic"}}>Our Calendar</h1>
-            <p style={{fontSize:11,color:t.mute,marginTop:2}}>{an.total} events · Farringdon</p></div>
+            <p style={{fontSize:11,color:t.mute,marginTop:2}}>{NAMES[user]||"You"} · {an.total} events · Farringdon</p></div>
           <button onClick={()=>setTheme(theme==="pink"?"blue":"pink")} style={{...b0,width:44,height:24,borderRadius:12,position:"relative",background:theme==="pink"?"linear-gradient(135deg,#c94478,#e07aa0)":"linear-gradient(135deg,#3d6a96,#6a94bc)"}}>
             <div style={{width:18,height:18,borderRadius:9,background:"#fff",position:"absolute",top:3,left:theme==="pink"?3:23,transition:"left .3s cubic-bezier(.4,0,.2,1)"}}/>
           </button>
@@ -428,7 +469,7 @@ export default function App(){
           </div>
           {showTF&&<div style={{...cd,marginBottom:12,border:`1px solid ${t.acc}22`}}>
             <div style={{display:"flex",gap:6,marginBottom:6}}><div style={{flex:1}}><Lb>Date</Lb><input type="date" value={tf.date} onChange={e=>setTf(f=>({...f,date:e.target.value}))}/></div><div style={{flex:1}}><Lb>Duration</Lb><input value={tf.duration} onChange={e=>setTf(f=>({...f,duration:e.target.value}))} placeholder="1 hour"/></div></div>
-            <div style={{display:"flex",gap:6,marginBottom:6}}><div style={{flex:1}}><Lb>Partner</Lb><input value={tf.partner} onChange={e=>setTf(f=>({...f,partner:e.target.value}))} placeholder="Who with?"/></div><div style={{flex:1}}><Lb>Court</Lb><input value={tf.location} onChange={e=>setTf(f=>({...f,location:e.target.value}))} placeholder="Location"/></div></div>
+            <div style={{display:"flex",gap:6,marginBottom:6}}><div style={{flex:1}}><Lb>Playing with</Lb><input value={tf.partner} onChange={e=>setTf(f=>({...f,partner:e.target.value}))} placeholder={user==="P"?"Blanka, coach...":"Patrick, coach..."}/></div><div style={{flex:1}}><Lb>Court</Lb><input value={tf.location} onChange={e=>setTf(f=>({...f,location:e.target.value}))} placeholder="Location"/></div></div>
             <div style={{marginBottom:6}}><Lb>Drills</Lb><input value={tf.drills} onChange={e=>setTf(f=>({...f,drills:e.target.value}))} placeholder="Serve practice, rallies..."/></div>
             <div style={{marginBottom:6}}><Lb>Rate Skills</Lb>
               {TSKILLS.map(sk=><div key={sk} style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
@@ -526,7 +567,11 @@ export default function App(){
             <button key={k} onClick={()=>setMoreView(k)} style={{...b0,...cd,padding:14,textAlign:"left"}}>
               <div style={{fontWeight:600,fontSize:12,color:t.tx}}>{l}</div>
               <div style={{fontSize:10,color:t.sub,marginTop:2,lineHeight:1.4}}>{d}</div>
-            </button>)}</div></>}
+            </button>)}</div>
+          <div style={{marginTop:12,...cd,display:"flex",alignItems:"center",justifyContent:"space-between",padding:14}}>
+            <div><div style={{fontWeight:600,fontSize:12}}>Logged in as {NAMES[user]}</div><div style={{fontSize:10,color:t.sub}}>Tap to switch profile</div></div>
+            <button onClick={()=>{const next=OTHER(user);setUser(next);localStorage.setItem("v5user",next);toast.show(`Switched to ${NAMES[next]}`);}} style={{...b0,padding:"8px 16px",borderRadius:8,background:t.acc,color:"#fff",fontSize:11,fontWeight:600}}>Switch to {NAMES[OTHER(user)]}</button>
+          </div></>}
 
         {moreView==="ai"&&<><Back onClick={()=>setMoreView(null)}/>
           <div className="hs" style={{display:"flex",gap:6,marginBottom:10,overflowX:"auto"}}>
@@ -662,7 +707,8 @@ export default function App(){
             </div>
             <div style={{fontSize:12,color:t.sub,lineHeight:1.8,marginBottom:12}}>
               {fmtL(viewEv.date)}{viewEv.time?` · ${viewEv.time}`:""}{viewEv.duration?` · ${viewEv.duration}`:""}
-              {viewEv.people&&<div>With {viewEv.people}</div>}
+              {(()=>{const creator=viewEv.createdBy?NAMES[viewEv.createdBy]:"";const others=viewEv.people?viewEv.people:"";const allPeople=[creator,others].filter(Boolean).join(", ");return allPeople?<div>With {allPeople}</div>:null;})()}
+              {viewEv.createdBy&&viewEv.createdBy!==user&&<div style={{fontSize:10,color:t.acc}}>Added by {NAMES[viewEv.createdBy]}</div>}
               {viewEv.address&&<div>{viewEv.address}</div>}
               {viewEv.foodType&&<div>{viewEv.restaurantName||viewEv.title} · {viewEv.foodType}{viewEv.priceRange?` · ${viewEv.priceRange}`:""}</div>}
               {viewEv.bestDish&&<div>Best dish: {viewEv.bestDish}</div>}
@@ -699,7 +745,7 @@ export default function App(){
           </div>
           <div style={{marginBottom:7}}><Lb>Tags</Lb><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{CATS.map(c=><button key={c.id} onClick={()=>tTag(c.id)} style={{...b0,padding:"4px 8px",borderRadius:6,border:`1px solid ${form.tags.includes(c.id)?t.acc:t.bd}`,background:form.tags.includes(c.id)?t.acc:"transparent",color:form.tags.includes(c.id)?"#fff":t.tx,fontSize:10}}>{c.label}</button>)}</div></div>
           <div style={{display:"flex",gap:6,marginBottom:7}}>
-            <div style={{flex:1}}><Lb>People</Lb><input value={form.people} onChange={e=>setForm(f=>({...f,people:e.target.value}))} placeholder="Jake, Mum..."/></div>
+            <div style={{flex:1}}><Lb>Who else? <span style={{textTransform:"none",fontWeight:400,color:t.sub}}>(you're auto-included)</span></Lb><input value={form.people} onChange={e=>setForm(f=>({...f,people:e.target.value}))} placeholder={user==="P"?"Blanka, friends...":"Patrick, friends..."}/></div>
             <div style={{flex:1}}><Lb>Repeat</Lb><select value={form.recurrence} onChange={e=>setForm(f=>({...f,recurrence:e.target.value}))}>{REC.map(r=><option key={r}>{r}</option>)}</select></div>
           </div>
           <div style={{marginBottom:7}}><Lb>Mood</Lb><div style={{display:"flex",gap:8}}>{MOODS.map(m=><button key={m.e} onClick={()=>setForm(f=>({...f,mood:f.mood===m.e?"":m.e}))} style={{...b0,fontSize:20,padding:"4px 6px",borderRadius:8,background:form.mood===m.e?t.soft:"transparent",border:form.mood===m.e?`1px solid ${t.acc}`:"1px solid transparent"}}>{m.e}</button>)}</div></div>
