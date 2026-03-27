@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { eventsRef, savedRef, discoverRef, wishlistRef, birthdaysRef, goalsRef, chatRef, tennisRef, runningRef, onValue, set } from "./firebase";
+import { eventsRef, savedRef, discoverRef, wishlistRef, birthdaysRef, goalsRef, chatRef, tennisRef, runningRef, notesRef, onValue, set } from "./firebase";
 import L from "leaflet";
 
 /* ═══ DATA ═══ */
@@ -89,6 +89,10 @@ export default function App(){
   const[runs,setRuns]=useState([]);const[showRF,setShowRF]=useState(false);
   const[rf,setRf]=useState({date:"",distance:"",time:"",type:"Easy",feel:"",notes:""});
   const[quickAdd,setQuickAdd]=useState(null); // date key for quick-add popup
+  const[notes,setNotes]=useState([]);
+  const[noteModal,setNoteModal]=useState(null); // "write"|"read"
+  const[activeNote,setActiveNote]=useState(null);
+  const[noteText,setNoteText]=useState("");
   const longPress=useRef(null);
   const toast=useToast();
   const[transDir,setTransDir]=useState(0); // -1 left, 1 right, 0 none
@@ -109,6 +113,7 @@ export default function App(){
     u.push(onValue(chatRef,s=>{if(s.val())setChat(s.val());}));
     u.push(onValue(tennisRef,s=>{if(s.val())setTSessions(s.val());}));
     u.push(onValue(runningRef,s=>{if(s.val())setRuns(s.val());}));
+    u.push(onValue(notesRef,s=>{const d=s.val();if(d){const arr=Array.isArray(d)?d:Object.values(d);setNotes(arr.filter(Boolean));}else{setNotes([]);}}));
     try{const r=localStorage.getItem("v5t");if(r)setTheme(r);}catch{}
     try{const u=localStorage.getItem("v5user");if(u)setUser(u);}catch{}
     return()=>u.forEach(x=>x());},[]);
@@ -231,6 +236,16 @@ export default function App(){
   const fDisc=useMemo(()=>{if(discFilter==="all")return AD;if(discFilter==="saved")return AD.filter(e=>saved.includes(e.id));return AD.filter(e=>e.cat===discFilter);},[discFilter,saved,AD]);
   const bdCd=useMemo(()=>bdays.map(b=>({...b,days:dud(b.month,b.day)})).sort((a,b)=>a.days-b.days),[bdays]);
 
+  // ── Notes ──
+  const saveNt=arr=>{if(!arr.length){sy(notesRef,null);return;}const obj={};arr.forEach(n=>{if(n?.id)obj[n.id]=n;});sy(notesRef,obj);};
+  const unreadNote=useMemo(()=>[...notes].filter(n=>n.to===user&&!n.openedAt).sort((a,b)=>a.createdAt-b.createdAt)[0]||null,[notes,user]);
+  const canWriteToday=useMemo(()=>!notes.find(n=>n.from===user&&n.date===today),[notes,user,today]);
+  const sentToday=useMemo(()=>notes.find(n=>n.from===user&&n.date===today)||null,[notes,user,today]);
+  const pastNotes=useMemo(()=>[...notes].sort((a,b)=>b.createdAt-a.createdAt),[notes]);
+  const noteEmoji=u=>u==="P"?"💙":"💗";
+  const sendNote=()=>{if(!noteText.trim())return;const n={id:"n"+Date.now(),from:user,to:OTHER(user),text:noteText.trim(),date:today,createdAt:Date.now(),openedAt:null};const arr=[...notes,n];setNotes(arr);saveNt(arr);setNoteText("");setNoteModal(null);toast.show("Note sent ✉️");};
+  const openNote=note=>{setActiveNote(note);setNoteModal("read");if(!note.openedAt){const arr=notes.map(n=>n.id===note.id?{...n,openedAt:Date.now()}:n);setNotes(arr);saveNt(arr);}};
+
   // ── Styles ──
   const Pill=({children,s})=><span style={{fontSize:10,fontWeight:500,padding:"3px 8px",borderRadius:20,background:t.tagBg,color:t.tagTx,...s}}>{children}</span>;
   const Lb=({children})=><label style={{fontSize:10,fontWeight:500,color:t.mute,marginBottom:4,display:"block",letterSpacing:".05em",textTransform:"uppercase"}}>{children}</label>;
@@ -278,6 +293,10 @@ export default function App(){
         @keyframes pulse{0%,100%{opacity:.4}50%{opacity:.15}}
         @keyframes slideL{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
         @keyframes slideR{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes uncrumple{0%{transform:scale(0.17) rotate(-14deg);border-radius:44% 36% 48% 32%/38% 46% 30% 44%;box-shadow:0 3px 10px rgba(0,0,0,0.32);filter:brightness(0.76) contrast(1.08)}12%{transform:scale(0.145) rotate(-20deg);border-radius:47% 33% 52% 28%/35% 50% 26% 48%;filter:brightness(0.71) contrast(1.1)}30%{transform:scale(0.32) rotate(-11deg);border-radius:28% 22% 34% 18%/22% 30% 15% 28%;filter:brightness(0.83) contrast(1.05)}52%{transform:scale(0.59) rotate(-4.5deg);border-radius:16% 12% 19% 10%/11% 17% 8% 15%;filter:brightness(0.91) contrast(1.02)}70%{transform:scale(0.79) rotate(-1.8deg);border-radius:8% 6% 10% 5%;filter:brightness(0.96)}84%{transform:scale(0.94) rotate(0.6deg);border-radius:4% 3% 5% 3%;filter:brightness(0.99)}93%{transform:scale(1.025) rotate(-0.3deg);border-radius:2%;filter:brightness(1)}100%{transform:scale(1) rotate(0deg);border-radius:14px;box-shadow:0 10px 40px rgba(0,0,0,0.18);filter:brightness(1) contrast(1)}}
+        @keyframes noteIn{0%,58%{opacity:0;transform:translateY(5px)}100%{opacity:1;transform:translateY(0)}}
+        @keyframes notePulse{0%,100%{transform:rotate(-8deg) scale(1)}50%{transform:rotate(-5deg) scale(1.08)}}
+        @keyframes noteBounce{0%,100%{transform:rotate(-8deg) translateY(0)}50%{transform:rotate(-6deg) translateY(-4px)}}
         .a{animation:up .35s ease both}
         .sl{animation:slideL .25s ease both}
         .sr{animation:slideR .25s ease both}
@@ -392,6 +411,37 @@ export default function App(){
         {/* Mantra */}
         <div style={{...cd,marginBottom:12,padding:16,textAlign:"center",background:t.soft}}>
           <p style={{fontFamily:t.hf,fontSize:16,fontWeight:500,fontStyle:"italic",lineHeight:1.6,opacity:.85}}>"{MANTRAS[Math.floor(Date.now()/86400000)%MANTRAS.length]}"</p>
+        </div>
+
+        {/* Daily Notes */}
+        <div className="a" style={{...cd,marginBottom:12,padding:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:unreadNote||canWriteToday||sentToday?10:0}}>
+            <Head>DAILY NOTES</Head>
+            <button onClick={()=>{changeTab("more");setMoreView("notes");}} style={{...b0,fontSize:9,color:t.mute,letterSpacing:".04em",fontWeight:500}}>PAST NOTES ›</button>
+          </div>
+          {unreadNote&&<button onClick={()=>openNote(unreadNote)} style={{...b0,display:"flex",alignItems:"center",gap:14,width:"100%",padding:"10px 12px",borderRadius:12,background:t.soft,marginBottom:canWriteToday?8:0,border:`1px solid ${t.acc}18`}}>
+            <div style={{position:"relative",flexShrink:0}}>
+              <div style={{width:62,height:58,background:`radial-gradient(ellipse at 33% 33%,rgba(255,255,255,0.42) 0%,transparent 44%),radial-gradient(ellipse at 72% 66%,rgba(0,0,0,0.14) 0%,transparent 42%),radial-gradient(ellipse at 18% 72%,rgba(0,0,0,0.09) 0%,transparent 32%),radial-gradient(ellipse at 80% 22%,rgba(255,255,255,0.18) 0%,transparent 28%),#d9d0b5`,borderRadius:"42% 38% 46% 36%/40% 45% 37% 44%",boxShadow:"inset -3px -4px 9px rgba(0,0,0,0.18),inset 2px 3px 7px rgba(255,255,255,0.32),0 7px 22px rgba(0,0,0,0.18),0 2px 6px rgba(0,0,0,0.1)",animation:"noteBounce 2.6s ease-in-out infinite"}}/>
+              <div style={{position:"absolute",top:-3,right:-3,width:12,height:12,borderRadius:6,background:t.acc,border:"2px solid #fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)"}}/>
+            </div>
+            <div style={{flex:1,textAlign:"left"}}>
+              <div style={{fontSize:13,fontWeight:600,marginBottom:3}}>From {NAMES[unreadNote.from]} {noteEmoji(unreadNote.from)}</div>
+              <div style={{fontSize:10,color:t.sub}}>Tap to unfold · {fmtD(unreadNote.date)}</div>
+            </div>
+            <span style={{fontSize:18,color:t.acc,opacity:.7}}>›</span>
+          </button>}
+          {canWriteToday
+            ?<button onClick={()=>setNoteModal("write")} style={{...b0,display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 12px",borderRadius:10,border:`1px dashed ${t.bd}`}}>
+              <span style={{fontSize:15,opacity:.6}}>✏️</span>
+              <div style={{textAlign:"left"}}>
+                <div style={{fontSize:12,fontWeight:600,color:t.acc}}>Write to {NAMES[OTHER(user)]}</div>
+                <div style={{fontSize:10,color:t.sub}}>One note per day</div>
+              </div>
+            </button>
+            :sentToday&&<div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 2px",opacity:.45}}>
+              <span style={{fontSize:13}}>✉️</span>
+              <span style={{fontSize:11,color:t.sub}}>Note sent to {NAMES[OTHER(user)]} today</span>
+            </div>}
         </div>
 
         {/* Fitness glance */}
@@ -563,7 +613,7 @@ export default function App(){
       {/* ═══ MORE ═══ */}
       {tab==="more"&&<div style={{padding:"12px 20px"}}>
         {!moreView&&<><Head>MORE</Head><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          {[["ai","AI Concierge","Restaurants, plans, London tips"],["insights","Insights","Stats, moods, people"],["rankings","Rankings","Restaurant leaderboard"],["goals","Goals","Couple goals tracker"],["dates","Dates","Birthdays & anniversaries"],["wishlist","Wishlist","Places to try"],["wrap","Monthly Wrap","AI month summary"],["map","Map","Places visited"],["gallery","Gallery","Event photos"],["guest","Guest Mode","Visitor itinerary"]].map(([k,l,d])=>
+          {[["ai","AI Concierge","Restaurants, plans, London tips"],["insights","Insights","Stats, moods, people"],["notes","Daily Notes",unreadNote?"New note waiting ✉️":"Notes to each other"],["rankings","Rankings","Restaurant leaderboard"],["goals","Goals","Couple goals tracker"],["dates","Dates","Birthdays & anniversaries"],["wishlist","Wishlist","Places to try"],["wrap","Monthly Wrap","AI month summary"],["map","Map","Places visited"],["gallery","Gallery","Event photos"],["guest","Guest Mode","Visitor itinerary"]].map(([k,l,d])=>
             <button key={k} onClick={()=>setMoreView(k)} style={{...b0,...cd,padding:14,textAlign:"left"}}>
               <div style={{fontWeight:600,fontSize:12,color:t.tx}}>{l}</div>
               <div style={{fontSize:10,color:t.sub,marginTop:2,lineHeight:1.4}}>{d}</div>
@@ -662,6 +712,25 @@ export default function App(){
           </SwipeRow>)}
         </>}
 
+        {moreView==="notes"&&<><Back onClick={()=>setMoreView(null)}/>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div><Head>DAILY NOTES</Head><p style={{fontSize:14,fontWeight:600}}>Notes between you two</p></div>
+            {canWriteToday&&<button onClick={()=>setNoteModal("write")} style={{...b0,padding:"6px 14px",borderRadius:8,background:t.acc,color:"#fff",fontSize:11,fontWeight:600}}>Write</button>}
+          </div>
+          {pastNotes.length===0&&<Empty t={t} icon="✉️" msg="Write a note for each other — one a day. They appear as little crumpled paper balls."/>}
+          {pastNotes.map(n=>{const isMine=n.from===user;return<div key={n.id} style={{...cd,marginBottom:8,padding:14,borderLeft:`3px solid ${isMine?t.acc:"#888"}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <span style={{fontSize:9,fontWeight:600,letterSpacing:".06em",color:isMine?t.acc:t.sub}}>{isMine?`TO ${NAMES[n.to].toUpperCase()}`:`FROM ${NAMES[n.from].toUpperCase()}`}</span>
+              <span style={{fontSize:9,color:t.mute}}>{fmtD(n.date)}</span>
+            </div>
+            <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontStyle:"italic",lineHeight:1.75,color:t.tx}}>{n.text}</p>
+            <div style={{marginTop:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:12}}>{noteEmoji(n.from)}</span>
+              {!isMine&&!n.openedAt&&<button onClick={()=>openNote(n)} style={{...b0,fontSize:10,color:t.acc,fontWeight:500}}>Unfold ›</button>}
+            </div>
+          </div>;})}
+        </>}
+
         {moreView==="wrap"&&<><Back onClick={()=>setMoreView(null)}/>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
             <div><Head>MONTHLY WRAP</Head><p style={{fontSize:14,fontWeight:600}}>{MO[now.getMonth()]}</p></div>
@@ -726,6 +795,47 @@ export default function App(){
               <button onClick={oEdit} style={{...b0,padding:"12px 0",borderRadius:10,flex:2,background:t.acc,color:"#fff",fontSize:13,fontWeight:600}}>Edit</button>
             </div>
           </div>
+        </div>
+      </div>}
+
+      {/* ═══ NOTE READ MODAL ═══ */}
+      {noteModal==="read"&&activeNote&&<div onClick={()=>{setNoteModal(null);setActiveNote(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",backdropFilter:"blur(14px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1001,animation:"in .2s",padding:"0 24px"}}>
+        <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:340,position:"relative",animation:"uncrumple 1.4s cubic-bezier(0.22,1,0.36,1) both",transformOrigin:"center center"}}>
+          {/* Paper */}
+          <div style={{background:"#faf5ec",backgroundImage:"repeating-linear-gradient(transparent,transparent 27px,rgba(150,160,200,0.22) 27px,rgba(150,160,200,0.22) 28px)",backgroundSize:"100% 28px",backgroundPosition:"0 52px",borderRadius:14,padding:"28px 28px 28px 52px",boxShadow:"0 12px 48px rgba(0,0,0,0.22),0 2px 8px rgba(0,0,0,0.1)",minHeight:240,position:"relative",overflow:"hidden"}}>
+            {/* Red margin line */}
+            <div style={{position:"absolute",left:44,top:0,bottom:0,width:1.5,background:"rgba(210,80,80,0.28)",pointerEvents:"none"}}/>
+            {/* Paper texture */}
+            <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 88% 8%,rgba(210,190,160,0.14) 0%,transparent 50%),radial-gradient(ellipse at 12% 88%,rgba(180,165,140,0.1) 0%,transparent 45%)",pointerEvents:"none"}}/>
+            {/* Header */}
+            <div style={{animation:"noteIn 1.4s ease both",position:"relative",zIndex:1,marginBottom:20,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div>
+                <p style={{fontFamily:t.hf,fontSize:12,fontStyle:"italic",color:"#9a8a6a",marginBottom:2,letterSpacing:".02em"}}>{fmtL(activeNote.date)}</p>
+                <p style={{fontSize:10,color:"#b09878",fontWeight:500}}>for {NAMES[activeNote.to]} {noteEmoji(activeNote.to)}</p>
+              </div>
+              <button onClick={()=>{setNoteModal(null);setActiveNote(null);}} style={{...b0,fontSize:18,color:"#c0b090",lineHeight:1,opacity:.7,marginTop:-2}}>×</button>
+            </div>
+            {/* Note text */}
+            <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,lineHeight:1.85,color:"#2e2516",fontStyle:"italic",animation:"noteIn 1.4s ease both",position:"relative",zIndex:1,marginBottom:20}}>{activeNote.text}</p>
+            {/* Signature */}
+            <div style={{textAlign:"right",animation:"noteIn 1.4s ease both",position:"relative",zIndex:1}}>
+              <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,fontStyle:"italic",color:"#9a8a6a"}}>— {NAMES[activeNote.from]} {noteEmoji(activeNote.from)}</span>
+            </div>
+          </div>
+        </div>
+      </div>}
+
+      {/* ═══ NOTE WRITE MODAL ═══ */}
+      {noteModal==="write"&&<div onClick={()=>{setNoteModal(null);setNoteText("");}} style={{position:"fixed",inset:0,background:t.ov,backdropFilter:"blur(16px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:1001,animation:"in .2s"}}>
+        <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:440,background:t.bg,borderRadius:"20px 20px 0 0",padding:"16px 20px 32px",animation:"si .3s",boxShadow:"0 -4px 40px rgba(0,0,0,.08)"}}>
+          <div style={{width:28,height:3,borderRadius:2,background:t.mute,opacity:.3,margin:"0 auto 14px"}}/>
+          <h2 style={{fontFamily:t.hf,fontSize:20,fontWeight:500,fontStyle:"italic",marginBottom:2}}>For {NAMES[OTHER(user)]} {noteEmoji(OTHER(user))}</h2>
+          <p style={{fontSize:10,color:t.mute,marginBottom:16,letterSpacing:".03em"}}>{fmtD(today)} · one note today</p>
+          <div style={{position:"relative",marginBottom:6}}>
+            <textarea value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="Write something from the heart..." rows={5} maxLength={300} autoFocus style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontStyle:"italic",lineHeight:1.75,background:"#faf5ec",border:`1px solid ${t.bd}`,borderRadius:10,padding:"14px 16px",color:"#2e2516",resize:"none",width:"100%",outline:"none",boxShadow:`inset 0 1px 4px rgba(0,0,0,0.04)`,transition:"border-color .2s"}}/>
+            <span style={{position:"absolute",bottom:8,right:12,fontSize:9,color:t.mute,fontFamily:"'Plus Jakarta Sans'"}}>{noteText.length}/300</span>
+          </div>
+          <Btn primary onClick={sendNote} style={{opacity:noteText.trim()?1:0.45,transition:"opacity .2s"}}>Send Note ✉️</Btn>
         </div>
       </div>}
 

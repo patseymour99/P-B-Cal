@@ -23,4 +23,5 @@ export const goalsRef     = ref(db, "calendar/goals");
 export const chatRef      = ref(db, "calendar/chat");
 export const tennisRef    = ref(db, "calendar/tennis");
 export const runningRef   = ref(db, "calendar/running");
+export const notesRef     = ref(db, "calendar/notes");
 export { onValue, set, db };
