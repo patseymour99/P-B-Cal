@@ -127,6 +127,7 @@ export default function App(){
 
   // ── Notifications ──
   const prevEvRef=useRef(null);
+  const prevNotesRef=useRef(null);
   useEffect(()=>{if(!loaded||!("Notification"in window))return;
     // Ask permission
     if(Notification.permission==="default")Notification.requestPermission();
@@ -144,6 +145,14 @@ export default function App(){
             new Notification(`${NAMES[ev.createdBy]} added an event`,{body:`${ev.title}${ev.time?" at "+ev.time:""} — ${fmtD(k)}`,icon:"/apple-touch-icon.png"});
           }});});}catch{}}
     prevEvRef.current=evStr;},[events,user,loaded]);
+  // Note notification: fire when partner sends a new note
+  useEffect(()=>{if(!user||!loaded||Notification.permission!=="granted")return;
+    const str=JSON.stringify(notes);
+    if(prevNotesRef.current&&prevNotesRef.current!==str){
+      try{const prev=JSON.parse(prevNotesRef.current);const prevIds=new Set(prev.map(n=>n.id));
+        notes.forEach(n=>{if(n.to===user&&!prevIds.has(n.id)){
+          new Notification(`${NAMES[n.from]} left you a note 💌`,{body:"Open the app to unfold your daily note",icon:"/apple-touch-icon.png"});}});}catch{}}
+    prevNotesRef.current=str;},[notes,user,loaded]);
 
   // ── Computed ──
   const wk=useMemo(()=>gwk(),[today]);const md=useMemo(()=>gmd(cYear,cMonth),[cYear,cMonth]);
@@ -293,10 +302,11 @@ export default function App(){
         @keyframes pulse{0%,100%{opacity:.4}50%{opacity:.15}}
         @keyframes slideL{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
         @keyframes slideR{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
-        @keyframes uncrumple{0%{transform:scale(0.17) rotate(-14deg);border-radius:44% 36% 48% 32%/38% 46% 30% 44%;box-shadow:0 3px 10px rgba(0,0,0,0.32);filter:brightness(0.76) contrast(1.08)}12%{transform:scale(0.145) rotate(-20deg);border-radius:47% 33% 52% 28%/35% 50% 26% 48%;filter:brightness(0.71) contrast(1.1)}30%{transform:scale(0.32) rotate(-11deg);border-radius:28% 22% 34% 18%/22% 30% 15% 28%;filter:brightness(0.83) contrast(1.05)}52%{transform:scale(0.59) rotate(-4.5deg);border-radius:16% 12% 19% 10%/11% 17% 8% 15%;filter:brightness(0.91) contrast(1.02)}70%{transform:scale(0.79) rotate(-1.8deg);border-radius:8% 6% 10% 5%;filter:brightness(0.96)}84%{transform:scale(0.94) rotate(0.6deg);border-radius:4% 3% 5% 3%;filter:brightness(0.99)}93%{transform:scale(1.025) rotate(-0.3deg);border-radius:2%;filter:brightness(1)}100%{transform:scale(1) rotate(0deg);border-radius:14px;box-shadow:0 10px 40px rgba(0,0,0,0.18);filter:brightness(1) contrast(1)}}
-        @keyframes noteIn{0%,58%{opacity:0;transform:translateY(5px)}100%{opacity:1;transform:translateY(0)}}
-        @keyframes notePulse{0%,100%{transform:rotate(-8deg) scale(1)}50%{transform:rotate(-5deg) scale(1.08)}}
-        @keyframes noteBounce{0%,100%{transform:rotate(-8deg) translateY(0)}50%{transform:rotate(-6deg) translateY(-4px)}}
+        @keyframes uncrumple{0%{transform:perspective(600px) scale(0.15) rotate(-17deg) rotateX(12deg);border-radius:48% 32% 52% 28%/36% 50% 26% 48%;filter:brightness(0.68) contrast(1.16) drop-shadow(0 2px 8px rgba(0,0,0,0.55))}10%{transform:perspective(600px) scale(0.12) rotate(-24deg) rotateX(16deg);border-radius:54% 26% 58% 22%/30% 56% 20% 54%;filter:brightness(0.63) contrast(1.18) drop-shadow(0 2px 10px rgba(0,0,0,0.6))}27%{transform:perspective(600px) scale(0.28) rotate(-15deg) rotateX(8deg);border-radius:32% 20% 38% 16%/20% 34% 13% 32%;filter:brightness(0.78) contrast(1.1) drop-shadow(0 4px 14px rgba(0,0,0,0.42))}47%{transform:perspective(600px) scale(0.54) rotate(-7deg) rotateX(3deg);border-radius:20% 13% 24% 10%/12% 20% 8% 17%;filter:brightness(0.88) contrast(1.05) drop-shadow(0 7px 20px rgba(0,0,0,0.28))}64%{transform:perspective(600px) scale(0.76) rotate(-2.5deg) rotateX(0.5deg);border-radius:10% 7% 12% 6%;filter:brightness(0.95) drop-shadow(0 10px 28px rgba(0,0,0,0.2))}79%{transform:perspective(600px) scale(0.92) rotate(0.9deg);border-radius:5% 3% 6% 3%;filter:brightness(0.98) drop-shadow(0 12px 34px rgba(0,0,0,0.16))}90%{transform:perspective(600px) scale(1.035) rotate(-0.5deg);border-radius:2%;filter:brightness(1) drop-shadow(0 14px 40px rgba(0,0,0,0.13))}96%{transform:perspective(600px) scale(0.99) rotate(0.1deg);border-radius:1%}100%{transform:perspective(600px) scale(1) rotate(0deg) rotateX(0deg);border-radius:14px;filter:brightness(1) contrast(1) drop-shadow(0 12px 44px rgba(0,0,0,0.12))}}
+        @keyframes noteIn{0%,60%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:translateY(0)}}
+        @keyframes noteGlow{0%{box-shadow:0 0 0 0 rgba(200,68,120,0.55)}65%{box-shadow:0 0 0 16px rgba(200,68,120,0)}100%{box-shadow:0 0 0 0 rgba(200,68,120,0)}}
+        @keyframes noteGlowBlue{0%{box-shadow:0 0 0 0 rgba(61,106,150,0.55)}65%{box-shadow:0 0 0 16px rgba(61,106,150,0)}100%{box-shadow:0 0 0 0 rgba(61,106,150,0)}}
+        @keyframes noteBounce{0%,100%{transform:rotate(-8deg) translateY(0) scale(1)}45%{transform:rotate(-5.5deg) translateY(-5px) scale(1.04)}}
         .a{animation:up .35s ease both}
         .sl{animation:slideL .25s ease both}
         .sr{animation:slideR .25s ease both}
@@ -419,10 +429,13 @@ export default function App(){
             <Head>DAILY NOTES</Head>
             <button onClick={()=>{changeTab("more");setMoreView("notes");}} style={{...b0,fontSize:9,color:t.mute,letterSpacing:".04em",fontWeight:500}}>PAST NOTES ›</button>
           </div>
-          {unreadNote&&<button onClick={()=>openNote(unreadNote)} style={{...b0,display:"flex",alignItems:"center",gap:14,width:"100%",padding:"10px 12px",borderRadius:12,background:t.soft,marginBottom:canWriteToday?8:0,border:`1px solid ${t.acc}18`}}>
-            <div style={{position:"relative",flexShrink:0}}>
-              <div style={{width:62,height:58,background:`radial-gradient(ellipse at 33% 33%,rgba(255,255,255,0.42) 0%,transparent 44%),radial-gradient(ellipse at 72% 66%,rgba(0,0,0,0.14) 0%,transparent 42%),radial-gradient(ellipse at 18% 72%,rgba(0,0,0,0.09) 0%,transparent 32%),radial-gradient(ellipse at 80% 22%,rgba(255,255,255,0.18) 0%,transparent 28%),#d9d0b5`,borderRadius:"42% 38% 46% 36%/40% 45% 37% 44%",boxShadow:"inset -3px -4px 9px rgba(0,0,0,0.18),inset 2px 3px 7px rgba(255,255,255,0.32),0 7px 22px rgba(0,0,0,0.18),0 2px 6px rgba(0,0,0,0.1)",animation:"noteBounce 2.6s ease-in-out infinite"}}/>
-              <div style={{position:"absolute",top:-3,right:-3,width:12,height:12,borderRadius:6,background:t.acc,border:"2px solid #fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)"}}/>
+          {unreadNote&&<button onClick={()=>openNote(unreadNote)} style={{...b0,display:"flex",alignItems:"center",gap:14,width:"100%",padding:"12px 14px",borderRadius:14,background:t.soft,marginBottom:canWriteToday?8:0,border:`1px solid ${t.acc}20`}}>
+            <div style={{position:"relative",flexShrink:0,padding:4}}>
+              {/* Ping glow ring */}
+              <div style={{position:"absolute",inset:-2,borderRadius:"46% 40% 50% 38%/44% 50% 38% 48%",animation:`${theme==="pink"?"noteGlow":"noteGlowBlue"} 2.2s ease-out infinite`}}/>
+              {/* Crumpled ball */}
+              <div style={{width:72,height:68,background:`radial-gradient(ellipse at 28% 28%,rgba(255,255,255,0.5) 0%,transparent 40%),radial-gradient(ellipse at 68% 38%,rgba(255,255,255,0.18) 0%,transparent 30%),radial-gradient(ellipse at 75% 70%,rgba(0,0,0,0.16) 0%,transparent 42%),radial-gradient(ellipse at 16% 74%,rgba(0,0,0,0.11) 0%,transparent 34%),radial-gradient(ellipse at 52% 52%,rgba(0,0,0,0.06) 0%,transparent 55%),#d6cba8`,borderRadius:"44% 36% 48% 34%/40% 46% 36% 46%",boxShadow:"inset -4px -5px 12px rgba(0,0,0,0.22),inset 3px 4px 9px rgba(255,255,255,0.38),inset 1px -2px 6px rgba(0,0,0,0.1),0 8px 28px rgba(0,0,0,0.22),0 3px 8px rgba(0,0,0,0.12)",animation:"noteBounce 2.6s ease-in-out infinite",position:"relative"}}/>
+              <div style={{position:"absolute",top:-1,right:1,width:14,height:14,borderRadius:7,background:t.acc,border:"2.5px solid #fff",boxShadow:`0 2px 6px ${t.acc}80`,zIndex:2}}/>
             </div>
             <div style={{flex:1,textAlign:"left"}}>
               <div style={{fontSize:13,fontWeight:600,marginBottom:3}}>From {NAMES[unreadNote.from]} {noteEmoji(unreadNote.from)}</div>
@@ -799,43 +812,62 @@ export default function App(){
       </div>}
 
       {/* ═══ NOTE READ MODAL ═══ */}
-      {noteModal==="read"&&activeNote&&<div onClick={()=>{setNoteModal(null);setActiveNote(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",backdropFilter:"blur(14px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1001,animation:"in .2s",padding:"0 24px"}}>
-        <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:340,position:"relative",animation:"uncrumple 1.4s cubic-bezier(0.22,1,0.36,1) both",transformOrigin:"center center"}}>
-          {/* Paper */}
-          <div style={{background:"#faf5ec",backgroundImage:"repeating-linear-gradient(transparent,transparent 27px,rgba(150,160,200,0.22) 27px,rgba(150,160,200,0.22) 28px)",backgroundSize:"100% 28px",backgroundPosition:"0 52px",borderRadius:14,padding:"28px 28px 28px 52px",boxShadow:"0 12px 48px rgba(0,0,0,0.22),0 2px 8px rgba(0,0,0,0.1)",minHeight:240,position:"relative",overflow:"hidden"}}>
-            {/* Red margin line */}
-            <div style={{position:"absolute",left:44,top:0,bottom:0,width:1.5,background:"rgba(210,80,80,0.28)",pointerEvents:"none"}}/>
-            {/* Paper texture */}
-            <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 88% 8%,rgba(210,190,160,0.14) 0%,transparent 50%),radial-gradient(ellipse at 12% 88%,rgba(180,165,140,0.1) 0%,transparent 45%)",pointerEvents:"none"}}/>
-            {/* Header */}
-            <div style={{animation:"noteIn 1.4s ease both",position:"relative",zIndex:1,marginBottom:20,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+      {noteModal==="read"&&activeNote&&<div onClick={()=>{setNoteModal(null);setActiveNote(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.72)",backdropFilter:"blur(18px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1001,animation:"in .2s",padding:"0 22px"}}>
+        <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:348,position:"relative",animation:"uncrumple 1.5s cubic-bezier(0.22,1,0.36,1) both",transformOrigin:"center center",willChange:"transform"}}>
+          {/* Paper card */}
+          <div style={{borderRadius:16,overflow:"hidden",boxShadow:"0 24px 80px rgba(0,0,0,0.35),0 6px 24px rgba(0,0,0,0.18),inset 0 1px 0 rgba(255,255,255,0.7)"}}>
+            {/* Header strip */}
+            <div style={{background:"linear-gradient(160deg,#e8dcc4 0%,#dfd3b0 100%)",padding:"14px 20px 12px",borderBottom:"1px solid rgba(180,155,110,0.25)",display:"flex",justifyContent:"space-between",alignItems:"center",animation:"noteIn 1.5s ease both"}}>
               <div>
-                <p style={{fontFamily:t.hf,fontSize:12,fontStyle:"italic",color:"#9a8a6a",marginBottom:2,letterSpacing:".02em"}}>{fmtL(activeNote.date)}</p>
-                <p style={{fontSize:10,color:"#b09878",fontWeight:500}}>for {NAMES[activeNote.to]} {noteEmoji(activeNote.to)}</p>
+                <p style={{fontFamily:t.hf,fontSize:13,fontStyle:"italic",color:"#7a6a4a",letterSpacing:".02em",marginBottom:1}}>{fmtL(activeNote.date)}</p>
+                <p style={{fontSize:10,color:"#a08c6a",fontWeight:500,letterSpacing:".03em"}}>from {NAMES[activeNote.from].toUpperCase()} → {NAMES[activeNote.to].toUpperCase()}</p>
               </div>
-              <button onClick={()=>{setNoteModal(null);setActiveNote(null);}} style={{...b0,fontSize:18,color:"#c0b090",lineHeight:1,opacity:.7,marginTop:-2}}>×</button>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:22,lineHeight:1}}>{noteEmoji(activeNote.from)}</span>
+                <button onClick={()=>{setNoteModal(null);setActiveNote(null);}} style={{...b0,width:26,height:26,borderRadius:13,background:"rgba(0,0,0,0.08)",color:"#8a7a5a",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:300,lineHeight:1}}>×</button>
+              </div>
             </div>
-            {/* Note text */}
-            <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,lineHeight:1.85,color:"#2e2516",fontStyle:"italic",animation:"noteIn 1.4s ease both",position:"relative",zIndex:1,marginBottom:20}}>{activeNote.text}</p>
-            {/* Signature */}
-            <div style={{textAlign:"right",animation:"noteIn 1.4s ease both",position:"relative",zIndex:1}}>
-              <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,fontStyle:"italic",color:"#9a8a6a"}}>— {NAMES[activeNote.from]} {noteEmoji(activeNote.from)}</span>
+            {/* Paper body with lines */}
+            <div style={{background:"linear-gradient(175deg,#fdf8ee 0%,#faf3e2 100%)",backgroundImage:"repeating-linear-gradient(transparent,transparent 27px,rgba(130,148,200,0.16) 27px,rgba(130,148,200,0.16) 28.5px)",backgroundSize:"100% 28px",backgroundPosition:"0 18px",position:"relative",padding:"22px 26px 26px 54px",minHeight:180}}>
+              {/* Red margin line */}
+              <div style={{position:"absolute",left:44,top:0,bottom:0,width:1.5,background:"rgba(220,75,75,0.22)",pointerEvents:"none"}}/>
+              {/* Horizontal fold crease */}
+              <div style={{position:"absolute",left:0,right:0,top:"46%",height:1,background:"linear-gradient(90deg,transparent,rgba(160,140,100,0.2) 20%,rgba(160,140,100,0.2) 80%,transparent)",pointerEvents:"none"}}/>
+              {/* Corner curl shadow */}
+              <div style={{position:"absolute",bottom:0,right:0,width:32,height:32,background:"linear-gradient(225deg,rgba(160,140,100,0.22) 0%,transparent 55%)",borderRadius:"0 0 0 0",pointerEvents:"none"}}/>
+              {/* Paper ambient texture */}
+              <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 90% 5%,rgba(220,200,160,0.12) 0%,transparent 45%),radial-gradient(ellipse at 8% 92%,rgba(190,170,130,0.09) 0%,transparent 40%)",pointerEvents:"none"}}/>
+              {/* Note text */}
+              <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:21,lineHeight:1.85,color:"#28200e",fontStyle:"italic",animation:"noteIn 1.5s ease both",position:"relative",zIndex:1,marginBottom:22,wordBreak:"break-word"}}>{activeNote.text}</p>
+              {/* Signature */}
+              <div style={{textAlign:"right",animation:"noteIn 1.5s ease both",position:"relative",zIndex:1,borderTop:"1px solid rgba(160,140,100,0.15)",paddingTop:10}}>
+                <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,fontStyle:"italic",color:"#9a8a62",letterSpacing:".02em"}}>— {NAMES[activeNote.from]}</span>
+              </div>
             </div>
+            {/* Bottom edge shadow — simulates paper thickness */}
+            <div style={{height:5,background:"linear-gradient(to bottom,rgba(150,130,90,0.12),rgba(150,130,90,0.24))"}}/>
           </div>
         </div>
       </div>}
 
       {/* ═══ NOTE WRITE MODAL ═══ */}
-      {noteModal==="write"&&<div onClick={()=>{setNoteModal(null);setNoteText("");}} style={{position:"fixed",inset:0,background:t.ov,backdropFilter:"blur(16px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:1001,animation:"in .2s"}}>
-        <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:440,background:t.bg,borderRadius:"20px 20px 0 0",padding:"16px 20px 32px",animation:"si .3s",boxShadow:"0 -4px 40px rgba(0,0,0,.08)"}}>
-          <div style={{width:28,height:3,borderRadius:2,background:t.mute,opacity:.3,margin:"0 auto 14px"}}/>
-          <h2 style={{fontFamily:t.hf,fontSize:20,fontWeight:500,fontStyle:"italic",marginBottom:2}}>For {NAMES[OTHER(user)]} {noteEmoji(OTHER(user))}</h2>
-          <p style={{fontSize:10,color:t.mute,marginBottom:16,letterSpacing:".03em"}}>{fmtD(today)} · one note today</p>
-          <div style={{position:"relative",marginBottom:6}}>
-            <textarea value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="Write something from the heart..." rows={5} maxLength={300} autoFocus style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontStyle:"italic",lineHeight:1.75,background:"#faf5ec",border:`1px solid ${t.bd}`,borderRadius:10,padding:"14px 16px",color:"#2e2516",resize:"none",width:"100%",outline:"none",boxShadow:`inset 0 1px 4px rgba(0,0,0,0.04)`,transition:"border-color .2s"}}/>
-            <span style={{position:"absolute",bottom:8,right:12,fontSize:9,color:t.mute,fontFamily:"'Plus Jakarta Sans'"}}>{noteText.length}/300</span>
+      {noteModal==="write"&&<div onClick={()=>{setNoteModal(null);setNoteText("");}} style={{position:"fixed",inset:0,background:t.ov,backdropFilter:"blur(18px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:1001,animation:"in .2s"}}>
+        <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:440,background:t.bg,borderRadius:"20px 20px 0 0",padding:"16px 20px 32px",animation:"si .3s",boxShadow:"0 -6px 48px rgba(0,0,0,.1)"}}>
+          <div style={{width:28,height:3,borderRadius:2,background:t.mute,opacity:.3,margin:"0 auto 16px"}}/>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+            <span style={{fontSize:22}}>{noteEmoji(OTHER(user))}</span>
+            <div>
+              <h2 style={{fontFamily:t.hf,fontSize:20,fontWeight:500,fontStyle:"italic",lineHeight:1.1}}>For {NAMES[OTHER(user)]}</h2>
+              <p style={{fontSize:10,color:t.mute,marginTop:2,letterSpacing:".03em"}}>{fmtD(today)} · one note per day</p>
+            </div>
           </div>
-          <Btn primary onClick={sendNote} style={{opacity:noteText.trim()?1:0.45,transition:"opacity .2s"}}>Send Note ✉️</Btn>
+          {/* Lined paper textarea */}
+          <div style={{position:"relative",marginBottom:14,borderRadius:12,overflow:"hidden",boxShadow:"0 2px 12px rgba(0,0,0,0.08),inset 0 1px 0 rgba(255,255,255,0.6)"}}>
+            <div style={{position:"absolute",left:42,top:0,bottom:0,width:1.5,background:"rgba(220,75,75,0.2)",pointerEvents:"none",zIndex:1}}/>
+            <textarea value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="Write something from the heart..." rows={6} maxLength={300} autoFocus style={{fontFamily:"'Cormorant Garamond',serif",fontSize:19,fontStyle:"italic",lineHeight:"28px",background:"linear-gradient(175deg,#fdf8ee,#faf3e2)",backgroundImage:"repeating-linear-gradient(transparent,transparent 27px,rgba(130,148,200,0.15) 27px,rgba(130,148,200,0.15) 28.5px)",backgroundSize:"100% 28px",backgroundPosition:"0 18px",border:"none",borderRadius:12,padding:"16px 18px 16px 56px",color:"#28200e",resize:"none",width:"100%",outline:"none",display:"block"}}/>
+            <span style={{position:"absolute",bottom:10,right:14,fontSize:9,color:"#b0a880",fontFamily:"'Plus Jakarta Sans'",zIndex:1}}>{noteText.length}/300</span>
+          </div>
+          <Btn primary onClick={sendNote} style={{opacity:noteText.trim()?1:0.42,transition:"opacity .2s"}}>Send Note ✉️</Btn>
         </div>
       </div>}
 
